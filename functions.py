@@ -1,3 +1,4 @@
+import itertools
 from datetime import datetime, date
 import os.path
 from sys import exit
@@ -252,7 +253,7 @@ def unread():
     return result
 
 
-def messages():
+def notices():
     query = """SELECT * FROM noticeboard ORDER BY posted_at DESC, seen"""
     data = cursor.execute(query).fetchall()
     printed = 0
@@ -284,25 +285,36 @@ def applied():
 
 
 def profiles():
-    query = """SELECT * FROM companies ORDER BY test_time, application_deadline DESC"""
+    query = "SELECT id, company, profile, CTC, application_deadline, applied, test_time, shortlisted, interview_date FROM companies ORDER BY test_time, application_deadline DESC"
+    result = [
+        ['Sl. No.', 'ID', 'Company', 'Role', 'CTC', 'Appln. Deadline', 'Applied', 'Test Time',
+         'Shortlisted', 'Interview Date']]
     data = cursor.execute(query).fetchall()
     printed = 0
-    result = [['Sl. No.', 'ID', 'Company', 'Role', 'CTC', 'Contract', 'Appln. Deadline', 'Other Steps', 'Applied']]
     for d in data:
-        at = datetime.strptime(d[5], '%Y-%m-%d %H:%M:%S')
+        at = datetime.strptime(d[4], '%Y-%m-%d %H:%M:%S').strftime("%a %d %b %y %H:%M") if d[4] is not None else 'NA'
+        tt = datetime.strptime(d[6], '%Y-%m-%d %H:%M:%S').strftime("%a %d %b %y %H:%M") if d[6] is not None else 'NA'
+        it = datetime.strptime(d[8], '%Y-%m-%d %H:%M:%S').strftime("%a %d %b %y %H:%M") if d[8] is not None else 'NA'
         result.append(
-            [printed + 1, d[0], d[1], d[2], d[3], "Yes" if d[4] else "No", at.strftime("%a %d %b %y %H:%M"), d[6],
-             "Yes" if d[4] else "No"])
+            [printed + 1, d[0], d[1], d[2], d[3], at, "Yes" if d[4] else "No", tt,
+             "Yes" if d[7] else "No", it])
         printed += 1
     return result
 
 
-def search(key, key_type='company', search_type='companies'):
+def search(key, key_type='company', search_type='companies', all_data=False):
     key = [('%' + x + '%') for x in key]
     if search_type == 'companies':
-        query = "SELECT * FROM companies WHERE " + key_type + " LIKE ? ORDER BY application_deadline DESC"
-        result = [['ID', 'Company', 'Role', 'CTC', 'Contract', 'Appln. Deadline', 'Other Steps', 'Applied', 'Test Time',
-                   'Importance', 'Test Rating', 'PPT Time', 'PPT Attended', 'Shortlisted', 'Interview Date']]
+        if all_data:
+            query = "SELECT * FROM companies WHERE " + key_type + " LIKE ? ORDER BY application_deadline DESC"
+            result = [
+                ['ID', 'Company', 'Role', 'CTC', 'Contract', 'Appln. Deadline', 'Other Steps', 'Applied', 'Test Time',
+                 'Importance', 'Test Rating', 'PPT Time', 'PPT Attended', 'Shortlisted', 'Interview Date']]
+        else:
+            query = "SELECT id, company, profile, CTC, application_deadline, applied, test_time, shortlisted, interview_date FROM companies WHERE " + key_type + " LIKE ? ORDER BY application_deadline DESC"
+            result = [
+                ['ID', 'Company', 'Role', 'CTC', 'Appln. Deadline', 'Applied', 'Test Time',
+                 'Shortlisted', 'Interview Date']]
     else:
         query = "SELECT type, company, posted_at, notice FROM noticeboard WHERE notice LIKE ? ORDER BY posted_at DESC"
         result = [["Category", "Company", 'Posted at', 'Notice']]
@@ -314,27 +326,41 @@ def search(key, key_type='company', search_type='companies'):
     return result
 
 
-def update(company_id, column, value):
-    query = f"UPDATE companies SET {column}=? WHERE id=?"
-    cursor.execute(query, (value, company_id))
-    db.commit()
+def show(company_id):
     query = "SELECT * FROM companies WHERE id=?"
     data = cursor.execute(query, (company_id,)).fetchone()
     if not data:
         print("Oops, Company not found!")
         exit()
     data = list(data)
-    data[-3] = test_ratings[data[-3]]
-    result = [['ID', 'Company', 'Role', 'CTC', 'Contract', 'Appln. Deadline', 'Other Steps', 'Applied', 'Test Time',
-               'Importance', 'Test Rating', 'PPT Time', 'PPT Attended'], data]
+    data[-5] = test_ratings[data[-5]]
+    if data[5] is not None:
+        data[5] = datetime.strptime(data[5], '%Y-%m-%d %H:%M:%S').strftime('%a %d %b %y %H:%M')
+    if data[8] is not None:
+        data[8] = datetime.strptime(data[8], '%Y-%m-%d %H:%M:%S').strftime('%a %d %b %y %H:%M')
+    if data[11] is not None:
+        data[11] = datetime.strptime(data[11], '%Y-%m-%d %H:%M:%S').strftime('%a %d %b %y %H:%M')
+    if data[14] is not None:
+        data[14] = datetime.strptime(data[14], '%Y-%m-%d %H:%M:%S').strftime('%a %d %b %y %H:%M')
+    r = [['ID', 'Company', 'Role', 'CTC', 'Contract', 'Appln. Deadline', 'Other Steps', 'Applied', 'Test Time',
+          'Importance', 'Test Rating', 'PPT Time', 'PPT Attended', 'Shortlisted', 'Interview Date'], data]
+    result = [[r[0][i], r[1][i]] for i in range(len(r[0]))]
+    result.insert(0, ['Property', 'Value'])
     return result
 
 
-def filter_by_date(pivot='application_deadline', buffer=0):
-    query = f"SELECT * FROM companies WHERE Cast ((JulianDay() - JulianDay({pivot})) As Integer)=? ORDER BY {pivot}"
+def update(company_id, column, value):
+    query = f"UPDATE companies SET {column}=? WHERE id=?"
+    cursor.execute(query, (value, company_id))
+    db.commit()
+    return show(company_id)
+
+
+def filter_by_date(pivot='application_deadline', buffer=1):
+    query = f"SELECT id, company, profile, CTC, contract, application_deadline, applied, test_time, shortlisted, interview_date FROM companies WHERE (JulianDay({pivot}, 'start of day') - JulianDay('now', 'start of day'))=? ORDER BY {pivot} DESC"
     data = cursor.execute(query, (buffer,)).fetchall()
-    result = [['ID', 'Company', 'Role', 'CTC', 'Contract', 'Appln. Deadline', 'Other Steps', 'Applied', 'Test Time',
-               'Importance', 'Test Rating', 'PPT Time', 'PPT Attended', 'Shortlisted', 'Interview Date']]
+    result = [['ID', 'Company', 'Role', 'CTC', 'Contract', 'Appln. Deadline', 'Applied', 'Test Time',
+               'Shortlisted', 'Interview Date']]
     for d in data:
         result.append(list(d))
 

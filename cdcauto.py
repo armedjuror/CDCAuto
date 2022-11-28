@@ -1,4 +1,5 @@
 #!/usr/bin/python
+import errno
 import os
 import sys
 from getpass import getpass
@@ -52,7 +53,7 @@ def terminal(argc):
             arr.append(getpass(f'{qs[j]} '))
         c, d, e, f, g, h = arr
         setup(a, b, c, d, e, f, g, h, i)
-        print("Two files: secret.key, data.db are added. Tampering this may cause data loss.")
+        print("Two files: secret.key, data.db are created to directory data. Tampering this may cause data loss.")
     else:
         if not os.path.exists('data/secret.key') or not os.path.exists('data/data.db'):
             print("It seems you haven't completed the setup!")
@@ -100,8 +101,8 @@ def terminal(argc):
             ud = []
             if argc[1] == 'unread':
                 ud = unread()
-            elif argc[1] == 'messages':
-                ud = messages()
+            elif argc[1] == 'notices':
+                ud = notices()
             elif argc[1] == 'applied':
                 ud = applied()
             elif argc[1] == 'profiles':
@@ -109,6 +110,10 @@ def terminal(argc):
             elif argc[1] == 'search':
                 key_type = 'company'
                 search_type = 'companies'
+                all_data = False
+                if '-a' in argc:
+                    all_data = True
+                    argc.remove('-a')
                 if '-n' in argc:
                     search_type = 'noticeboard'
                     argc.remove('-n')
@@ -124,7 +129,7 @@ def terminal(argc):
                           "-r (role)] [key/keys]")
                     exit()
 
-                ud = search(argc[2:], key_type, search_type)
+                ud = search(argc[2:], key_type, search_type, all_data)
             elif argc[1] == 'set':
                 if len(argc) < 3:
                     print("Usage: cdcauto set [Company ID]")
@@ -195,18 +200,24 @@ def terminal(argc):
 
                     while True:
                         value = input(prompt)
-                        if value_type == 'dict' and isinstance(value, int):
+                        if value_type == 'dict' and value.isnumeric():
                             value = int(value)
                             if value in column_values[columns[column]].keys():
+                                value = list(column_values[columns[column]].keys())[value - 1]
                                 break
-                        elif value_type == 'list' and isinstance(value, int):
+                        elif value_type == 'list' and value.isnumeric():
                             value = int(value)
                             if value < len(column_values[columns[column]]):
+                                value = column_values[columns[column]][value-1]
                                 break
-                        elif value_type == 'str' and isinstance(value, str):
-                            value = value.strip()
+                        elif value_type == 'str':
                             try:
                                 datetime.strptime(value, '%d-%m-%Y %H:%M')
+                                value = value.strip() + ":00"
+                                v, value = value.split(" ")
+                                v1 = "-".join(v.split('-')[::-1])
+                                value = v1 + " " + value
+                                datetime.strptime(value, '%Y-%m-%d %H:%M:%S')
                                 break
                             except ValueError:
                                 print("Input Schedule should be on the format DD-MM-YYYY HH:MM")
@@ -222,7 +233,9 @@ def terminal(argc):
                 pivot = "application_deadline"
                 buffer = 0
                 if len(argc) < 3:
-                    error = True
+                    print(
+                        "Usage: cdcauto deadline/ppt/test/interview [today/tomorrow/yesterday/n: -2, 0, 1, 2...(means in n days)]")
+                    exit()
 
                 if argc[1] == 'test':
                     pivot = "test_time"
@@ -233,25 +246,34 @@ def terminal(argc):
                 elif argc[1] == 'deadline':
                     pivot = "application_deadline"
                 else:
-                    error = True
-
-                if argc[2] == 'today':
-                    buffer = 0
-                elif argc[2] == 'today':
-                    buffer = 1
-                elif argc[2] == 'yesterday':
-                    buffer = -1
-                else:
-                    if isinstance(argc[2], int):
-                        buffer = int(argc[2])
-                    else:
-                        error = True
-
-                if error:
                     print(
                         "Usage: cdcauto deadline/ppt/test/interview [today/tomorrow/yesterday/n: -2, 0, 1, 2...(means in n days)]")
+                    exit()
+
+                if argc[2] == 'today':
+                    buffer = 1
+                elif argc[2] == 'tomorrow':
+                    buffer = 2
+                elif argc[2] == 'yesterday':
+                    buffer = 0
+                else:
+                    if argc[2].lstrip("-").isnumeric():
+                        buffer = int(argc[2])+1
+                    else:
+                        print(
+                            "Usage: cdcauto deadline/ppt/test/interview [today/tomorrow/yesterday/n: -2, 0, 1, 2...(means in n days)]")
+                        exit()
 
                 ud = filter_by_date(pivot, buffer)
+            elif argc[1] == 'show':
+                if len(argc) < 3:
+                    print("Usage: cdcauto set [Company ID]")
+                    exit()
+                if not argc[2].isnumeric():
+                    print("Usage: cdcauto set [Company ID]")
+                    exit()
+                company_id = int(argc[2])
+                ud = show(company_id)
 
             else:
                 print(f"Oops, Unable to recognize the command : {argc[1]}\n")
@@ -270,7 +292,7 @@ def terminal(argc):
 try:
     argv = [x.lower() for x in sys.argv]
     if len(argv) < 2:
-        print("Usage: cdcauto [command/-i] [arguments]")
+        print("Usage: cdcauto [command] [arguments]")
         exit()
     # if argv[1] == '-i':
     #     print("\n\tCDC AUTO\n")
@@ -287,3 +309,8 @@ except KeyboardInterrupt:
 except sqlite3.OperationalError:
     print("\nOops, setup is found missing!")
     print("Use: cdcauto setup [roll_number] [PLACEMENT/INTERNSHIP]")
+except IOError as e:
+    if e.errno == errno.EPIPE:
+        pass
+except ValueError:
+    print("\nOops, wrong input. Quitting!")
