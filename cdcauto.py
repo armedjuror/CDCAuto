@@ -16,8 +16,9 @@ from texttable import Texttable
 from webdriver_manager.chrome import ChromeDriverManager
 from webdriver_manager.firefox import GeckoDriverManager
 
-if not os.path.exists('data'):
-    os.makedirs('data')
+dir_name = os.path.expanduser('~') + '/.cdcauto/data'
+if not os.path.exists(dir_name):
+    os.makedirs(dir_name)
 
 from functions import *
 
@@ -29,7 +30,7 @@ def terminal(argc):
             exit()
         a, i = argc[2:]
         a.upper()
-        if os.path.exists('data/secret.key'):
+        if os.path.exists(f'{dir_name}/secret.key'):
             while True:
                 confirm = input(
                     'Are you sure to save the new credentials? This action is not undoable and will delete all records of current user. (yes/no) : ')
@@ -58,7 +59,8 @@ def terminal(argc):
             arr.append(getpass(f'{qs[j]} '))
         c, d, e, f, g, h = arr
         browser_select = 'CHROME'
-        print("Select your browser: \n1. Chrome - default (1)\n2. Firefox (2)\n3. Edge (3)\n4. Brave(4)\n5. Chromium(5)")
+        print(
+            "Select your browser: \n1. Chrome - default (1)\n2. Firefox (2)\n3. Edge (3)\n4. Brave(4)\n5. Chromium(5)")
         while True:
             browser_select = input('Your Input: ')
             if browser_select in ['1', '2', '3', '4', '5']:
@@ -74,9 +76,10 @@ def terminal(argc):
                     browser_select = 'CHROMIUM'
                 break
         setup(a, b, c, d, e, f, g, h, i, browser_select)
-        print("Two files: secret.key, data.db are created to directory data. Tampering this may cause data loss.")
+        print(
+            f"Two files: secret.key, data.db are created to directory {dir_name}. Tampering this may cause data loss.")
     else:
-        if not os.path.exists('data/secret.key') or not os.path.exists('data/data.db'):
+        if not os.path.exists(f'{dir_name}/secret.key') or not os.path.exists(f'{dir_name}/data.db'):
             print("It seems you haven't completed the setup!")
             print("Use: cdcauto setup [roll_number] [PLACEMENT/INTERNSHIP]")
             exit()
@@ -90,9 +93,11 @@ def terminal(argc):
             elif cred[-1] == 'EDGE':
                 driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()))
             elif cred[-1] == 'BRAVE':
-                driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(chrome_type=ChromeType.BRAVE).install()))
+                driver = webdriver.Chrome(
+                    service=ChromeService(ChromeDriverManager(chrome_type=ChromeType.BRAVE).install()))
             elif cred[-1] == 'CHROMIUM':
-                driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()))
+                driver = webdriver.Chrome(
+                    service=ChromeService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()))
             else:
                 driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
             login(driver, cred)
@@ -238,7 +243,7 @@ def terminal(argc):
                         elif value_type == 'list' and value.isnumeric():
                             value = int(value)
                             if value < len(column_values[columns[column]]):
-                                value = column_values[columns[column]][value-1]
+                                value = column_values[columns[column]][value - 1]
                                 break
                         elif value_type == 'str':
                             try:
@@ -288,7 +293,7 @@ def terminal(argc):
                     buffer = 0
                 else:
                     if argc[2].lstrip("-").isnumeric():
-                        buffer = int(argc[2])+1
+                        buffer = int(argc[2]) + 1
                     else:
                         print(
                             "Usage: cdcauto deadline/ppt/test/interview [today/tomorrow/yesterday/n: -2, 0, 1, 2...(means in n days)]")

@@ -59,7 +59,7 @@
  [],
  False,
  False,
- 1669730288,
+ 1669733696,
  [('run',
    '/Users/armedjuror/Dev/Developments/CDCAuto/venv/lib/python3.10/site-packages/PyInstaller/bootloader/Darwin-64bit/run',
    'EXECUTABLE')])

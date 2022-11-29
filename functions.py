@@ -10,7 +10,8 @@ from selenium.webdriver.common.by import By
 ERP_LINK = "https://erp.iitkgp.ac.in/"
 CDC_COMPANY_LIST_LINK = "https://erp.iitkgp.ac.in/TrainingPlacementSSO/TPStudent.jsp"
 CDC_NOTICEBOARD_LINK = "https://erp.iitkgp.ac.in/TrainingPlacementSSO/Notice.jsp"
-db = sqlite3.connect('data/data.db')
+dir_name = os.path.expanduser('~') + '/.cdcauto/data'
+db = sqlite3.connect(f'{dir_name}/data.db')
 cursor = db.cursor()
 test_ratings = {
     0: "Missed",
@@ -96,7 +97,7 @@ def setup(
     line6 = fernet.encrypt(f"{answer2.strip()}".encode()).decode()
     line7 = fernet.encrypt(f"{question3.strip()}".encode()).decode()
     line8 = fernet.encrypt(f"{answer3.strip()}".encode()).decode()
-    with open("data/secret.key", "wb") as file:
+    with open(f"{dir_name}/secret.key", "wb") as file:
         file.write(key)
         file.close()
     create_db()
@@ -112,7 +113,7 @@ def setup(
 
 
 def creds():
-    file = open('data/secret.key', 'rb')
+    file = open(f'{dir_name}/secret.key', 'rb')
     res = []
     a = file.read()
     fernet = Fernet(a)
