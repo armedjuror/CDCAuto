@@ -7,9 +7,14 @@ from sys import exit
 import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from selenium.webdriver.edge.service import Service as EdgeService
+from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from webdriver_manager.core.utils import ChromeType
 from texttable import Texttable
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.firefox import GeckoDriverManager
 
 if not os.path.exists('data'):
     os.makedirs('data')
@@ -24,7 +29,7 @@ def terminal(argc):
             exit()
         a, i = argc[2:]
         a.upper()
-        if os.path.exists('secret.key'):
+        if os.path.exists('data/secret.key'):
             while True:
                 confirm = input(
                     'Are you sure to save the new credentials? This action is not undoable and will delete all records of current user. (yes/no) : ')
@@ -52,7 +57,23 @@ def terminal(argc):
             arr.append(qs[j])
             arr.append(getpass(f'{qs[j]} '))
         c, d, e, f, g, h = arr
-        setup(a, b, c, d, e, f, g, h, i)
+        browser_select = 'CHROME'
+        print("Select your browser: \n1. Chrome - default (1)\n2. Firefox (2)\n3. Edge (3)\n4. Brave(4)\n5. Chromium(5)")
+        while True:
+            browser_select = input('Your Input: ')
+            if browser_select in ['1', '2', '3', '4', '5']:
+                if browser_select == '1':
+                    browser_select = 'CHROME'
+                elif browser_select == '2':
+                    browser_select = 'FIREFOX'
+                elif browser_select == '3':
+                    browser_select = 'EDGE'
+                elif browser_select == '4':
+                    browser_select = 'BRAVE'
+                elif browser_select == '5':
+                    browser_select = 'BRAVE'
+                break
+        setup(a, b, c, d, e, f, g, h, i, browser_select)
         print("Two files: secret.key, data.db are created to directory data. Tampering this may cause data loss.")
     else:
         if not os.path.exists('data/secret.key') or not os.path.exists('data/data.db'):
@@ -64,7 +85,16 @@ def terminal(argc):
             print("Please Wait...")
             options = Options()
             options.page_load_strategy = 'normal'
-            driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+            if cred[-1] == 'FIREFOX':
+                driver = webdriver.Firefox(service=FirefoxService(GeckoDriverManager().install()))
+            elif cred[-1] == 'EDGE':
+                driver = webdriver.Edge(service=EdgeService(EdgeChromiumDriverManager().install()))
+            elif cred[-1] == 'BRAVE':
+                driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(chrome_type=ChromeType.BRAVE).install()))
+            elif cred[-1] == 'CHROMIUM':
+                driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()))
+            else:
+                driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options)
             login(driver, cred)
             if argc[1] == 'login':
                 while True:

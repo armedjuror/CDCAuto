@@ -35,7 +35,8 @@ def create_db():
         answer2 TEXT NOT NULL,
         question23 TEXT NOT NULL,
         answer3 TEXT NOT NULL,
-        type TEXT CHECK ( type IN ('PLACEMENT', 'INTERNSHIP') ) DEFAULT 'PLACEMENT'
+        type TEXT CHECK ( type IN ('PLACEMENT', 'INTERNSHIP') ) DEFAULT 'PLACEMENT',
+        browser TEXT CHECK (browser IN ('CHROME', 'FIREFOX', 'EDGE', 'BRAVE', 'CHROMIUM')) DEFAULT 'CHROME'
         )
     """)
     cursor.execute("""
@@ -81,7 +82,8 @@ def setup(
         answer2,
         question3,
         answer3,
-        type="PLACEMENT"
+        type="PLACEMENT",
+        browser='CHROME'
 ):
     key = Fernet.generate_key()
     # print(key)
@@ -103,8 +105,8 @@ def setup(
         cursor.execute("""DELETE FROM configs WHERE id=1""")
         db.commit()
     cursor.execute("""
-    INSERT INTO configs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
-    """, (1, line1, line2, line3, line4, line5, line6, line7, line8, type.upper()))
+    INSERT INTO configs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) 
+    """, (1, line1, line2, line3, line4, line5, line6, line7, line8, type.upper(), browser))
     db.commit()
     db.close()
 
@@ -115,8 +117,9 @@ def creds():
     a = file.read()
     fernet = Fernet(a)
     enc_creds = cursor.execute("""SELECT * FROM configs WHERE id=1""").fetchone()
-    for cipher in enc_creds[1:-1]:
+    for cipher in enc_creds[1:-2]:
         res.append(fernet.decrypt(cipher).decode())
+    res.append(enc_creds[-2])
     res.append(enc_creds[-1])
     return res
 
