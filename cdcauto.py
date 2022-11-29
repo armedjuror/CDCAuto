@@ -71,7 +71,7 @@ def terminal(argc):
                 elif browser_select == '4':
                     browser_select = 'BRAVE'
                 elif browser_select == '5':
-                    browser_select = 'BRAVE'
+                    browser_select = 'CHROMIUM'
                 break
         setup(a, b, c, d, e, f, g, h, i, browser_select)
         print("Two files: secret.key, data.db are created to directory data. Tampering this may cause data loss.")
