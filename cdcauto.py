@@ -108,7 +108,7 @@ def terminal(argc):
                     close_window = False
                     argc.remove('-w')
                 try:
-                    updates = cdc_update(driver, cred[-1], close_window)
+                    updates = cdc_update(driver, cred[-2], close_window)
                 except:
                     print("Oops, Something went wrong. Please try again!")
                     exit()

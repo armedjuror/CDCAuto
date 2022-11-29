@@ -164,12 +164,11 @@ def cdc_update(driver, type, close_window=True):
     open_companies = driver.execute_script('return jq("#grid37").getGridParam("data");')
     time.sleep(2)
     driver.get(CDC_NOTICEBOARD_LINK)
-    time.sleep(2)
+    time.sleep(3)
     all_notices = driver.execute_script('return jq("#grid54").getGridParam("data")')
     if close_window:
         driver.close()
-    printed = 0
-    result1 = [["Sl. No.", 'ID', 'Company', 'Role', 'CTC', 'Appln. Deadline', 'Contract']]
+    result1 = [["Sl. No.", 'ID', 'Company', 'Role', 'CTC', 'Appln. Deadline', 'Contract', 'Interview Date']]
     printed = 0
     companies = []
     for c in open_companies:
@@ -180,6 +179,12 @@ def cdc_update(driver, type, close_window=True):
         deadline = datetime(int(dr[2]), int(dr[1]), int(dr[0]), int(tr[0]), int(tr[1]))
         t += ":00"
         dt = "-".join(d.split('-')[::-1]) + " " + t
+        if c['interview_date_confirmed'] is not None:
+            i, t = c['interview_date_confirmed'].split(' ')
+            t += ":00"
+            it = "-".join(i.split('-')[::-1])+ " " + t
+        else:
+            it = None
         ins = [
             c['_id_'],
             c['companyname'].split("'")[1],
@@ -188,25 +193,27 @@ def cdc_update(driver, type, close_window=True):
             False if c['contract'] == 'NO' else True,
             dt,
             True if c['apply'] == 'Y' else False,
+            it,
             today - deadline,
             c['resumedeadline']
         ]
         companies.append(ins)
         cursor.execute("""
-            INSERT INTO companies (id, company, `profile`, CTC, contract, application_deadline, applied) VALUES (?, ?, ?, ?, ?, ?, ?) 
+            INSERT INTO companies (id, company, `profile`, CTC, contract, application_deadline, applied, interview_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
             ON CONFLICT(id) DO UPDATE SET CTC=excluded.CTC, contract=excluded.contract, application_deadline=excluded.application_deadline,
-            applied = excluded.applied;""", tuple(ins[:-2]))
+            applied = excluded.applied, interview_date=excluded.interview_date""", tuple(ins[:-2]))
     db.commit()
     companies.sort(key=lambda x: x[5])
     companies = companies[::-1]
     for co in companies:
-        if (-2 <= (co[-2].total_seconds() / 86400) <= 2) and (not co[-3]):
-            result1.append([printed + 1, co[0], co[1], co[2], co[3], co[-1],
-                            "(Have a contract)" if co[4] else ''])
+        if (-2 <= (co[-2].total_seconds() / 86400) <= 2) and (not co[6]):
+            result1.append([printed + 1, co[0], co[1], co[2], co[3], co[5],
+                            "(Have a contract)" if co[4] else '', co[7]])
             printed += 1
     result2 = [['Sl. No.', '[Category] - Company', 'Posted at', 'Notice']]
     printed = 0
     notices = []
+
     for n in all_notices:
         if n['type'] != type:
             break
