@@ -55,7 +55,7 @@ def create_db():
     cursor.execute("""
                             CREATE TABLE IF NOT EXISTS companies 
                             (
-                                id INT PRIMARY KEY NOT NULL,
+                                id INT NOT NULL,
                                 company VARCHAR(255) NOT NULL,
                                 `profile` VARCHAR(255) NOT NULL,
                                 CTC VARCHAR(255) NOT NULL,
@@ -69,7 +69,8 @@ def create_db():
                                 ppt_date DATETIME DEFAULT NULL,
                                 ppt_attended BOOL DEFAULT 0,
                                 shortlisted BOOL DEFAULT 0,
-                                interview_date DATETIME DEFAULT NULL
+                                interview_date DATETIME DEFAULT NULL,
+                                PRIMARY KEY (company, `profile`)
                             )
                             """)
 
@@ -183,7 +184,7 @@ def cdc_update(driver, type, close_window=True):
         if c['interview_date_confirmed'] is not None:
             i, t = c['interview_date_confirmed'].split(' ')
             t += ":00"
-            it = "-".join(i.split('-')[::-1])+ " " + t
+            it = "-".join(i.split('-')[::-1]) + " " + t
         else:
             it = None
         ins = [
@@ -201,7 +202,7 @@ def cdc_update(driver, type, close_window=True):
         companies.append(ins)
         cursor.execute("""
             INSERT INTO companies (id, company, `profile`, CTC, contract, application_deadline, applied, interview_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?) 
-            ON CONFLICT(id) DO UPDATE SET CTC=excluded.CTC, contract=excluded.contract, application_deadline=excluded.application_deadline,
+            ON CONFLICT(company, `profile`) DO UPDATE SET id=excluded.id, CTC=excluded.CTC, contract=excluded.contract, application_deadline=excluded.application_deadline,
             applied = excluded.applied, interview_date=excluded.interview_date""", tuple(ins[:-2]))
     db.commit()
     companies.sort(key=lambda x: x[5])
@@ -214,15 +215,18 @@ def cdc_update(driver, type, close_window=True):
     result2 = [['Sl. No.', '[Category] - Company', 'Posted at', 'Notice']]
     printed = 0
     notices = []
-
+    fetch_latest_time = cursor.execute("SELECT posted_at FROM noticeboard ORDER BY posted_at DESC LIMIT 1").fetchone()
+    latest_post_time = None
+    if fetch_latest_time:
+        latest_post_time = datetime.strptime(fetch_latest_time[0], '%Y-%m-%d %H:%M:%S')
     for n in all_notices:
         if n['type'] != type:
             break
-        d, t = n['noticeat'].split(' ')
-        t += ":00"
-        dt = "-".join(d.split('-')[::-1]) + " " + t
+        posted_date = datetime.strptime(n['noticeat'], '%d-%m-%Y %H:%M')
+        if latest_post_time is not None and posted_date <= latest_post_time:
+            continue
+        dt = posted_date.strftime('%Y-%m-%d %H:%M:%S')
         download = True if n['view1'].split("'")[1] == 'Download' else False
-
         ins = [
             n['_id_'],
             n['category'],
@@ -367,9 +371,17 @@ def update(company_id, column, value):
     return show(company_id)
 
 
-def filter_by_date(pivot='application_deadline', buffer=1):
-    query = f"SELECT id, company, profile, CTC, contract, application_deadline, applied, test_time, shortlisted, interview_date FROM companies WHERE (JulianDay({pivot}, 'start of day') - JulianDay('now', 'start of day'))=? ORDER BY {pivot} DESC"
-    data = cursor.execute(query, (buffer,)).fetchall()
+def filter_by_date(pivot='application_deadline', buffer=0):
+    if buffer > 0:
+        query = f"SELECT id, company, profile, CTC, contract, application_deadline, applied, test_time, shortlisted, interview_date FROM companies WHERE (JulianDay({pivot}, 'start of day') - JulianDay('now', 'start of day'))<=? AND (JulianDay({pivot}, 'start of day') - JulianDay('now', 'start of day'))>=0  ORDER BY {pivot} DESC"
+        data = cursor.execute(query, (buffer,)).fetchall()
+    elif buffer == 0:
+        query = f"SELECT id, company, profile, CTC, contract, application_deadline, applied, test_time, shortlisted, interview_date FROM companies WHERE (JulianDay({pivot}, 'start of day') - JulianDay('now', 'start of day'))=? ORDER BY {pivot} DESC"
+        data = cursor.execute(query, (buffer,)).fetchall()
+    else:
+        query = f"SELECT id, company, profile, CTC, contract, application_deadline, applied, test_time, shortlisted, interview_date FROM companies WHERE (JulianDay({pivot}, 'start of day') - JulianDay('now', 'start of day'))=?  ORDER BY {pivot} DESC"
+        data = cursor.execute(query, (buffer,)).fetchall()
+
     result = [['ID', 'Company', 'Role', 'CTC', 'Contract', 'Appln. Deadline', 'Applied', 'Test Time',
                'Shortlisted', 'Interview Date']]
     for d in data:

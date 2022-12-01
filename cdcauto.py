@@ -30,7 +30,7 @@ def terminal(argc):
             exit()
         a, i = argc[2:]
         a.upper()
-        if os.path.exists(f'{dir_name}/secret.key'):
+        if os.path.exists(f'{dir_name}/secret.key') and os.path.exists(f'{dir_name}/data.db'):
             while True:
                 confirm = input(
                     'Are you sure to save the new credentials? This action is not undoable and will delete all records of current user. (yes/no) : ')
@@ -114,7 +114,11 @@ def terminal(argc):
                     argc.remove('-w')
                 try:
                     updates = cdc_update(driver, cred[-2], close_window)
-                except:
+                except Exception as e:
+                    dt = datetime.now()
+                    f = open(dir_name + '/error_log_'+str(dt), 'w')
+                    f.write(str(e))
+                    f.close()
                     print("Oops, Something went wrong. Please try again!")
                     exit()
                 pipe = os.popen('less', 'w')
@@ -170,6 +174,9 @@ def terminal(argc):
                     print("Usage: cdcauto set [Company ID]")
                     exit()
                 company_id = int(argc[2])
+                company_details = show(company_id)
+                name, role = company_details[2][1], company_details[3][1]
+                print("Company : " + name + " , Role : " + role)
                 columns = ['other_steps', 'test_time', 'importance', 'test_rating', 'ppt_date', 'ppt_attended',
                            'shortlisted', 'interview_date']
                 column_values = {'other_steps': 0, 'test_time': 'DD-MM-YYYY HH:MM',
@@ -286,14 +293,14 @@ def terminal(argc):
                     exit()
 
                 if argc[2] == 'today':
-                    buffer = 1
-                elif argc[2] == 'tomorrow':
-                    buffer = 2
-                elif argc[2] == 'yesterday':
                     buffer = 0
+                elif argc[2] == 'tomorrow':
+                    buffer = 1
+                elif argc[2] == 'yesterday':
+                    buffer = -1
                 else:
                     if argc[2].lstrip("-").isnumeric():
-                        buffer = int(argc[2]) + 1
+                        buffer = int(argc[2])
                     else:
                         print(
                             "Usage: cdcauto deadline/ppt/test/interview [today/tomorrow/yesterday/n: -2, 0, 1, 2...(means in n days)]")

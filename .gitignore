@@ -5,3 +5,4 @@ data/
 venv/
 *.log
 lab/
+installer_linux_osx.sh
